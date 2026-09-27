@@ -1,0 +1,1 @@
+ /home/ed/GitHub/Nortis/.dart_tool/flutter_build/7148bf30213d6d03ba1f51a09818b418/native_assets.json: 
