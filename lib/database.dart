@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import 'main.dart';
+import 'models/study_block.dart';
 
 class DatabaseHelper {
   DatabaseHelper._();
@@ -18,7 +18,7 @@ class DatabaseHelper {
     final path = join(await getDatabasesPath(), 'nortis.db');
     return openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (database, version) async {
         await database.execute('''
           CREATE TABLE blocks (
@@ -32,7 +32,40 @@ class DatabaseHelper {
             weekKey TEXT NOT NULL
           )
         ''');
+        await database.execute(
+            'CREATE TABLE subjects (name TEXT PRIMARY KEY)');
+        await database.insert('subjects', {'name': 'Geral'},
+            conflictAlgorithm: ConflictAlgorithm.ignore);
       },
+      onUpdate: (database, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await database.execute(
+              'CREATE TABLE IF NOT EXISTS subjects (name TEXT PRIMARY KEY)');
+          // Pré-semeia com a matéria padrão e com as já usadas em blocos.
+          await database.insert('subjects', {'name': 'Geral'},
+              conflictAlgorithm: ConflictAlgorithm.ignore);
+          await database.execute(
+              'INSERT OR IGNORE INTO subjects (name) '
+              "SELECT DISTINCT subject FROM blocks WHERE subject != ''");
+        }
+      },
+    );
+  }
+
+  /// Matérias pré-definidas, em ordem alfabética.
+  Future<List<String>> loadSubjects() async {
+    final database = await db;
+    final rows = await database.query('subjects', orderBy: 'name');
+    return [for (final row in rows) row['name'] as String];
+  }
+
+  /// Persiste uma matéria pré-definida (nome duplicado é ignorado).
+  Future<void> insertSubject(String name) async {
+    final database = await db;
+    await database.insert(
+      'subjects',
+      {'name': name},
+      conflictAlgorithm: ConflictAlgorithm.ignore,
     );
   }
 
